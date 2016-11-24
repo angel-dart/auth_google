@@ -10,14 +10,17 @@ import 'package:googleapis_auth/auth_io.dart';
 import 'package:googleapis_auth/src/utils.dart' as utils;
 import 'package:http/http.dart' as http;
 
-class GoogleOauth2Strategy implements AuthStrategy {
+typedef Future GoogleAuthCallback(AccessCredentials credentials, Person profile);
+
+class GoogleStrategy implements AuthStrategy {
+  GoogleAuthCallback callback;
   final Map config = {};
   final List<String> scopes = [];
 
   @override
   String name = 'google';
 
-  GoogleOauth2Strategy({Map config: const {}, List<String> scopes: const []}) {
+  GoogleStrategy({this.callback, Map config: const {}, List<String> scopes: const []}) {
     this.config.addAll(config ?? {});
 
     if (scopes != null) this.scopes.addAll(scopes);
@@ -35,7 +38,8 @@ class GoogleOauth2Strategy implements AuthStrategy {
       url +=
           '&redirect_uri=${Uri.encodeQueryComponent(config['redirect_uri'])}';
       url += '&scope=${scopes.map(Uri.encodeQueryComponent).join('%20')}';
-      return res.redirect(url);
+      res.redirect(url);
+      return false;
     }
   }
 
@@ -64,22 +68,35 @@ class GoogleOauth2Strategy implements AuthStrategy {
           new AccessCredentials(accessToken, token['refresh_token'], scopes);
 
       // Create an HTTP client that is prepped to access Google+ API
-      final clientId = new ClientId(config['id'], config['secret']);
-      final authClient = autoRefreshingClient(clientId, credentials, client);
+      // final clientId = new ClientId(config['id'], config['secret']);
+      final authClient = authenticatedClient(client, credentials);
       final api = new PlusApi(authClient);
 
       // Fetch info about the user
-      Person me = await api.people.get('me');
+      Person profile = await api.people.get('me');
+
+      final verificationResult = await callback(credentials, profile);
       authClient.close();
       client.close();
 
-      return me;
+      if (verificationResult == false || verificationResult == null) {
+        if (options.failureRedirect != null &&
+            options.failureRedirect.isNotEmpty) {
+          res.redirect(options.failureRedirect, code: HttpStatus.UNAUTHORIZED);
+          return false;
+        } else return false;
+      } else if (verificationResult != null && verificationResult != false) {
+        return verificationResult;
+      } else {
+        return false;
+      }
     } catch (e) {
       if (options.failureRedirect != null &&
           options.failureRedirect.isNotEmpty) {
         res.redirect(options.failureRedirect, code: HttpStatus.UNAUTHORIZED);
         return false;
       }
+
       return false;
     }
   }
