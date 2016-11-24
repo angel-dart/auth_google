@@ -1,0 +1,14 @@
+name: angel_auth_google
+description: angel_auth strategy for Google OAuth2 login.
+version: 1.0.0-dev
+author: Tobe O <thosakwe@gmail.com>
+homepage: https://github.com/angel-dart/auth_google
+environment:
+  sdk: ">=1.18.0"
+dependencies:
+    angel_auth: ^1.0.0-dev
+    googleapis: ^0.32.0
+    googleapis_auth: ^0.2.3
+    http: ^0.11.3
+dev_dependencies:
+    test: ^0.12.15
