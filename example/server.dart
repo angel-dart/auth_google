@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:angel_auth/angel_auth.dart';
 import 'package:angel_auth_google/angel_auth_google.dart';
 import 'package:angel_framework/angel_framework.dart';
@@ -20,12 +21,7 @@ main() async {
     'redirect_uri': 'http://localhost:3000/auth/google/callback'
   }, callback: callback, scopes: scopes));
 
-  // Your serializer should accept a Google+ user. ;)
-  auth.serializer = (Person user) async {
-    // ...
-    print('User: ${user.toJson()}');
-    return user.id;
-  };
+  auth.serializer = (Person user) => user.id;
 
   auth.deserializer = (id) async {
     return {'id': id};
@@ -33,18 +29,26 @@ main() async {
 
   await app.configure(auth);
 
-  app.get('/', (res) => res.redirect('/index.html', code: 302));
+  app.get('/', (ResponseContext res) async {
+    final index = new File.fromUri(Platform.script.resolve('./index.html'));
+    return await res.streamFile(index);
+  });
 
-  app.get('/auth/google', auth.authenticate('google'));
+  app.group('/auth/google', (router) {
+    router.get('/', auth.authenticate('google'));
 
-  app.get(
-      '/auth/google/callback',
-      auth.authenticate(
-          'google',
-          new AngelAuthOptions(
-              successRedirect: '/home', failureRedirect: '/login?error=1')));
+    /// We can just return JSON here.
+    ///
+    /// In an SPA, we can access this APi
+    /// to easily obtain a JWT.
+    router.get('/callback', auth.authenticate('google'));
+  });
 
-  app.get('/home', (req, res) {
+  app.get('/home', (RequestContext req, res) {
+    for (final cookie in req.cookies) {
+      print('COOKIE: ${cookie.name} => ${cookie.value}');
+    }
+
     res.write('Hello, user #${req.user['id']}!');
     return false;
   });
@@ -57,7 +61,9 @@ main() async {
   print('Listening at http://${server.address.address}:${server.port}');
 }
 
-callback(creds, Person profile) {
-  print('Hello: ${profile.toJson()}');
-  return profile.id;
-}
+/// Your callback should accept a Google+ user. ;)
+///
+/// I considered forcing you to handle Google+ users in
+/// your serializer, but this approach allows users to
+/// sign in with multiple platforms.
+callback(_, Person profile) => profile;

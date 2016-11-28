@@ -10,7 +10,8 @@ import 'package:googleapis_auth/auth_io.dart';
 import 'package:googleapis_auth/src/utils.dart' as utils;
 import 'package:http/http.dart' as http;
 
-typedef Future GoogleAuthCallback(AccessCredentials credentials, Person profile);
+typedef Future GoogleAuthCallback(
+    AccessCredentials credentials, Person profile);
 
 class GoogleStrategy implements AuthStrategy {
   GoogleAuthCallback callback;
@@ -20,7 +21,8 @@ class GoogleStrategy implements AuthStrategy {
   @override
   String name = 'google';
 
-  GoogleStrategy({this.callback, Map config: const {}, List<String> scopes: const []}) {
+  GoogleStrategy(
+      {this.callback, Map config: const {}, List<String> scopes: const []}) {
     this.config.addAll(config ?? {});
 
     if (scopes != null) this.scopes.addAll(scopes);
@@ -29,7 +31,7 @@ class GoogleStrategy implements AuthStrategy {
   @override
   Future authenticate(RequestContext req, ResponseContext res,
       [AngelAuthOptions options]) async {
-    if (req.query.containsKey('code')) {
+    if (options != null || req.query.containsKey('code')) {
       return await authenticateCallback(req, res, options);
     } else {
       var url =
@@ -84,7 +86,8 @@ class GoogleStrategy implements AuthStrategy {
             options.failureRedirect.isNotEmpty) {
           res.redirect(options.failureRedirect, code: HttpStatus.UNAUTHORIZED);
           return false;
-        } else return false;
+        } else
+          return false;
       } else if (verificationResult != null && verificationResult != false) {
         return verificationResult;
       } else {
