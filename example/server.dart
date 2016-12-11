@@ -41,7 +41,10 @@ main() async {
     ///
     /// In an SPA, we can access this APi
     /// to easily obtain a JWT.
-    router.get('/callback', auth.authenticate('google'));
+    router.get('/callback', auth.authenticate('google',
+                                              new AngelAuthOptions(callback: (req, res, token) async {
+                                                 return {'user': token.userId};
+                                              })));
   });
 
   app.get('/home', (RequestContext req, res) {
