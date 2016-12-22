@@ -51,57 +51,37 @@ class GoogleStrategy implements AuthStrategy {
     String code = req.query['code'];
     if (code == null || code.isEmpty) throw new AngelHttpException.BadRequest();
 
-    try {
-      // Transform this into an access token
-      final client = new http.Client();
-      final response = await client
-          .post('https://www.googleapis.com/oauth2/v4/token', body: {
-        'code': code,
-        'client_id': config['id'],
-        'client_secret': config['secret'],
-        'redirect_uri': config['redirect_uri'],
-        'grant_type': 'authorization_code'
-      });
+    // Transform this into an access token
+    final client = new http.Client();
+    final response =
+        await client.post('https://www.googleapis.com/oauth2/v4/token', body: {
+      'code': code,
+      'client_id': config['id'],
+      'client_secret': config['secret'],
+      'redirect_uri': config['redirect_uri'],
+      'grant_type': 'authorization_code'
+    });
 
-      final token = JSON.decode(response.body);
-      final accessToken = new AccessToken(token['token_type'],
-          token['access_token'], utils.expiryDate(token['expires_in']));
-      final credentials =
-          new AccessCredentials(accessToken, token['refresh_token'], scopes);
+    final token = JSON.decode(response.body);
+    final accessToken = new AccessToken(token['token_type'],
+        token['access_token'], utils.expiryDate(token['expires_in']));
+    final credentials =
+        new AccessCredentials(accessToken, token['refresh_token'], scopes);
 
-      // Create an HTTP client that is prepped to access Google+ API
-      // final clientId = new ClientId(config['id'], config['secret']);
-      final authClient = authenticatedClient(client, credentials);
-      final api = new PlusApi(authClient);
+    // Create an HTTP client that is prepped to access Google+ API
+    // final clientId = new ClientId(config['id'], config['secret']);
+    final authClient = authenticatedClient(client, credentials);
+    final api = new PlusApi(authClient);
 
-      // Fetch info about the user
-      Person profile = await api.people.get('me');
+    // Fetch info about the user
+    Person profile = await api.people.get('me');
 
-      final verificationResult = await callback(credentials, profile);
-      authClient.close();
-      client.close();
+    final transformed =
+        callback != null ? await callback(credentials, profile) : profile;
+    authClient.close();
+    client.close();
 
-      if (verificationResult == false || verificationResult == null) {
-        if (options.failureRedirect != null &&
-            options.failureRedirect.isNotEmpty) {
-          res.redirect(options.failureRedirect, code: HttpStatus.UNAUTHORIZED);
-          return false;
-        } else
-          return false;
-      } else if (verificationResult != null && verificationResult != false) {
-        return verificationResult;
-      } else {
-        return false;
-      }
-    } catch (e) {
-      if (options.failureRedirect != null &&
-          options.failureRedirect.isNotEmpty) {
-        res.redirect(options.failureRedirect, code: HttpStatus.UNAUTHORIZED);
-        return false;
-      }
-
-      return false;
-    }
+    return transformed;
   }
 
   @override

@@ -1,6 +1,8 @@
 import 'dart:io';
 import 'package:angel_auth/angel_auth.dart';
 import 'package:angel_auth_google/angel_auth_google.dart';
+import 'package:angel_compress/angel_compress.dart';
+import 'package:angel_diagnostics/angel_diagnostics.dart';
 import 'package:angel_framework/angel_framework.dart';
 import 'package:googleapis/plus/v1.dart';
 
@@ -12,7 +14,10 @@ const scopes = const [
 
 main() async {
   final app = new Angel();
-  final auth = new AngelAuth();
+
+  // Disabling cookie support will force our auth to be stateless
+  // This could be good or bad, depending on how you look at it.
+  final auth = new AngelAuth(allowCookie: false);
 
   auth.strategies.add(new GoogleStrategy(config: {
     'id':
@@ -21,13 +26,11 @@ main() async {
     'redirect_uri': 'http://localhost:3000/auth/google/callback'
   }, callback: callback, scopes: scopes));
 
-  auth.serializer = (Person user) => user.id;
+  auth.serializer = (Person user) async => user.id;
 
   auth.deserializer = (id) async {
     return {'id': id};
   };
-
-  await app.configure(auth);
 
   app.get('/', (ResponseContext res) async {
     final index = new File.fromUri(Platform.script.resolve('./index.html'));
@@ -37,17 +40,22 @@ main() async {
   app.group('/auth/google', (router) {
     router.get('/', auth.authenticate('google'));
 
-    /// We can just return JSON here.
-    ///
-    /// In an SPA, we can access this APi
-    /// to easily obtain a JWT.
     router.get(
         '/callback',
-        auth.authenticate(
-            'google', new AngelAuthOptions(canRespondWithJson: false)));
+        auth.authenticate('google', new AngelAuthOptions(callback:
+            (RequestContext req, ResponseContext res, String jwt) async {
+          // If we are adamant about not using sessions, we can just
+          // stick the JWT into the query string.
+          return res.redirect('/home?token=$jwt');
+        })));
   });
 
-  app.get('/home', (RequestContext req, res) {
+  app.all('/home', (req, res) async {
+    print('Dumping cookies: ${req.cookies}');
+    return true;
+  });
+
+  app.chain('auth').get('/home', (RequestContext req, res) {
     for (final cookie in req.cookies) {
       print('COOKIE: ${cookie.name} => ${cookie.value}');
     }
@@ -60,8 +68,15 @@ main() async {
     throw new AngelHttpException.NotFound();
   });
 
-  final server = await app.startServer();
-  print('Listening at http://${server.address.address}:${server.port}');
+  app.responseFinalizers
+    ..add(gzip())
+    ..add((req, res) async {
+      print('Outgoing cookies: ${res.cookies}');
+    });
+
+  await app.configure(auth);
+
+  await new DiagnosticsServer(app, new File('log.txt')).startServer(null, 3000);
 }
 
 /// Your callback should accept a Google+ user. ;)
