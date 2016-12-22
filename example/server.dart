@@ -41,7 +41,10 @@ main() async {
     ///
     /// In an SPA, we can access this APi
     /// to easily obtain a JWT.
-    router.get('/callback', auth.authenticate('google'));
+    router.get(
+        '/callback',
+        auth.authenticate(
+            'google', new AngelAuthOptions(canRespondWithJson: false)));
   });
 
   app.get('/home', (RequestContext req, res) {
@@ -57,7 +60,7 @@ main() async {
     throw new AngelHttpException.NotFound();
   });
 
-  final server = await app.startServer(null, 3000);
+  final server = await app.startServer();
   print('Listening at http://${server.address.address}:${server.port}');
 }
 
