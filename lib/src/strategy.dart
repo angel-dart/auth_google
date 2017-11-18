@@ -2,7 +2,6 @@ library angel_auth.google.src.strategy;
 
 import 'dart:async';
 import 'dart:convert';
-import 'dart:io';
 import 'package:angel_auth/angel_auth.dart';
 import 'package:angel_framework/angel_framework.dart';
 import 'package:googleapis/plus/v1.dart';
@@ -10,11 +9,20 @@ import 'package:googleapis_auth/auth_io.dart';
 import 'package:googleapis_auth/src/utils.dart' as utils;
 import 'package:http/http.dart' as http;
 
+/// Use [GoogleAuthVerifier] instead.
+@deprecated
 typedef Future GoogleAuthCallback(
     AccessCredentials credentials, Person profile);
 
+typedef Future GoogleAuthVerifier(
+    AccessCredentials credentials, Person profile);
+
 class GoogleStrategy implements AuthStrategy {
+  /// Use [verifier] instead.
+  @deprecated
+  // ignore: deprecated_member_use
   GoogleAuthCallback callback;
+  GoogleAuthVerifier verifier;
   final Map config = {};
   final List<String> scopes = [];
 
@@ -49,7 +57,7 @@ class GoogleStrategy implements AuthStrategy {
       RequestContext req, ResponseContext res, AngelAuthOptions options) async {
     // Google should send us an authorization code...
     String code = req.query['code'];
-    if (code == null || code.isEmpty) throw new AngelHttpException.BadRequest();
+    if (code == null || code.isEmpty) throw new AngelHttpException.badRequest();
 
     // Transform this into an access token
     final client = new http.Client();
@@ -76,8 +84,10 @@ class GoogleStrategy implements AuthStrategy {
     // Fetch info about the user
     Person profile = await api.people.get('me');
 
+    // ignore: deprecated_member_use
+    var cb = verifier ?? callback;
     final transformed =
-        callback != null ? await callback(credentials, profile) : profile;
+        cb != null ? await cb(credentials, profile) : profile;
     authClient.close();
     client.close();
 

@@ -1,10 +1,10 @@
 import 'dart:io';
 import 'package:angel_auth/angel_auth.dart';
 import 'package:angel_auth_google/angel_auth_google.dart';
-import 'package:angel_compress/angel_compress.dart';
-import 'package:angel_diagnostics/angel_diagnostics.dart';
 import 'package:angel_framework/angel_framework.dart';
+import 'package:logging/logging.dart';
 import 'package:googleapis/plus/v1.dart';
+import 'pretty_logging.dart';
 
 const scopes = const [
   PlusApi.PlusMeScope,
@@ -21,8 +21,8 @@ main() async {
 
   auth.strategies.add(new GoogleStrategy(config: {
     'id':
-        '879916772461-i7htk1jo48ubv18dbe9pvce4m6lbka9n.apps.googleusercontent.com',
-    'secret': 'ZH3uaWy7Jtb7jtVRLcRRBdD0',
+        '715118808787-gcfcng89n120su115kv66gerjb93e8et.apps.googleusercontent.com',
+    'secret': 'QXjgDf2wF_nK_7fpZ1FNU71d',
     'redirect_uri': 'http://localhost:3000/auth/google/callback'
   }, callback: callback, scopes: scopes));
 
@@ -32,9 +32,11 @@ main() async {
     return {'id': id};
   };
 
+  app.use(auth.decodeJwt);
+
   app.get('/', (ResponseContext res) async {
     final index = new File.fromUri(Platform.script.resolve('./index.html'));
-    return await res.streamFile(index);
+    await res.streamFile(index);
   });
 
   app.group('/auth/google', (router) {
@@ -55,28 +57,21 @@ main() async {
     return true;
   });
 
-  app.chain('auth').get('/home', (RequestContext req, res) {
+  app.chain(requireAuth).get('/home', (RequestContext req, res) {
     for (final cookie in req.cookies) {
       print('COOKIE: ${cookie.name} => ${cookie.value}');
     }
 
-    res.write('Hello, user #${req.user['id']}!');
+    res.write('Hello, user #${req.properties['user']['id']}!');
     return false;
   });
 
-  app.all('*', () {
-    throw new AngelHttpException.NotFound();
-  });
+  app.use(() => throw new AngelHttpException.notFound());
 
-  app.responseFinalizers
-    ..add(gzip())
-    ..add((req, res) async {
-      print('Outgoing cookies: ${res.cookies}');
-    });
+  app.logger = new Logger('angel')..onRecord.listen(prettyLog);
 
-  await app.configure(auth);
-
-  await new DiagnosticsServer(app, new File('log.txt')).startServer(null, 3000);
+  var server = await app.startServer(null, 3000);
+  print('http://${server.address.address}:${server.port}');
 }
 
 /// Your callback should accept a Google+ user. ;)
