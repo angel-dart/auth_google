@@ -30,7 +30,7 @@ class GoogleStrategy implements AuthStrategy {
   String name = 'google';
 
   GoogleStrategy(
-      {this.callback, Map config: const {}, List<String> scopes: const []}) {
+      {this.callback, this.verifier, Map config: const {}, List<String> scopes: const []}) {
     this.config.addAll(config ?? {});
 
     if (scopes != null) this.scopes.addAll(scopes);

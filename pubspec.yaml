@@ -2,7 +2,7 @@ author: "Tobe O <thosakwe@gmail.com>"
 description: "angel_auth strategy for Google OAuth2 login."
 homepage: "https://github.com/angel-dart/auth_google"
 name: "angel_auth_google"
-version: "1.1.0"
+version: "1.1.0+1"
 dependencies: 
   angel_auth: "^1.1.0-alpha"
   googleapis: "^0.32.0"
